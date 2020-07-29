@@ -1,0 +1,120 @@
+//------------------------------------------------------------------------------
+void convert10_32(char* tempv, uint32_t *decnum) {
+    int lenv = 8;//strlen(tempv);
+    int pos = 0;
+    uint16_t u32=0;
+    //std::cout <<"tempv:" <<tempv << std::endl;
+    for(int i = lenv-1; i>=0;i--) {
+        int num1 = tempv[i];
+        if(num1 >=48 && num1 <=57) { //0~9
+            u32 += (num1-48) * pow(16, pos);
+        } else if(num1 >=65 && num1 <=70) { //A~F
+            u32 += (num1-(65-10)) * pow(16, pos);
+        } else if(num1 >=97 && num1 <=102) { //a~f
+            u32 += (num1-(97-10)) * pow(16, pos);
+        }    
+        pos++;
+    	//std::cout <<"tempv[i]:"<<tempv[i]<<std::dec<<" u16:"<<u16 << std::endl;
+    }  
+    *decnum = u32;
+}
+
+int interprete16_3(dwCANMessage* msg, CanDBData* rxdata1, CanDBData* rxdata2, CanDBData* rxdata3)
+{
+    std::cout << " msg->id : " <<std::hex << msg->id << " "<< std::endl;
+    char tempv1[MAX_VALUE16_LEN];
+    uint16_t u16val1 = 0;
+    char tempv2[MAX_VALUE16_LEN];
+    uint16_t u16val2 = 0;
+    char tempv3[MAX_VALUE16_LEN];
+    uint16_t u16val3 = 0;
+//*
+    for(int i=0;i<6;i++) {
+        std::cout <<std::hex<< (int)msg->data[i]<<" ";
+    }
+ // */
+    sprintf(tempv1,"%2x%2x", msg->data[0], msg->data[1]);
+    sprintf(tempv2,"%2x%2x", msg->data[2], msg->data[3]);
+    sprintf(tempv3,"%2x%2x", msg->data[4], msg->data[5]);
+    int lenv = strlen(tempv1);
+    tempv1[lenv] = 0;
+    tempv2[lenv] = 0;
+    tempv3[lenv] = 0;
+
+    std::cout <<std::dec;
+    std::cout << "tempv1:"<< tempv1 << " tempv2:"<< tempv2<<" tempv3:"<< tempv3<< std::endl;
+
+    convert10(tempv1, &u16val1);
+    convert10(tempv2, &u16val2);
+    convert10(tempv3, &u16val3);
+    rxdata1->value = (double)u16val1 * rxdata1->factor - rxdata1->offset;
+    rxdata2->value = (double)u16val2 * rxdata2->factor - rxdata2->offset;
+    rxdata3->value = (double)u16val3 * rxdata3->factor - rxdata3->offset;
+    std::cout <<std::dec<<"rxdata1->value : " << rxdata1->value << " "<< std::endl;
+    std::cout <<std::dec<<"rxdata2->value : " << rxdata2->value << " "<< std::endl;
+    std::cout <<std::dec<<"rxdata3->value : " << rxdata3->value << " "<< std::endl;
+    return 0;
+
+}
+
+//------------------------------------------------------------------------------
+int interprete16(dwCANMessage* msg, CanDBData* rxdata)
+{
+    std::cout << " msg->id : " <<std::hex << msg->id << " "<< std::endl;
+    for(int i=0;i<6;i++) {
+	std::cout <<std::hex<< (int)msg->data[i]<<" ";
+    }
+    char tempv[MAX_VALUE32_LEN];
+    uint32_t u32 = 0;
+
+    sprintf(tempv,"%2x%2x%2x%2x", msg->data[3], msg->data[2], msg->data[1],msg->data[0]);
+    //sprintf(tempv,"%x%x", msg->data[0], msg->data[1]);
+    int lenv = strlen(tempv);
+    tempv[lenv] = 0;
+
+    std::cout <<std::dec;
+    std::cout << "tvalue:"<< tempv << " length of value:"<< lenv<< std::endl;
+
+    convert10_32(tempv, &u32);
+//*//
+    rxdata->value = u32 * rxdata->factor - rxdata->offset;
+   // std::cout <<std::dec<<"factor:" << rxdata->factor << " offset:" << rxdata->offset;
+    std::cout <<std::dec<<"rxdata->value : " << rxdata->value << " "<< std::endl;
+    std::cout << std::endl;
+
+    return 0;
+}
+
+#ifdef TEST16
+int main(void)
+{
+    printf("test 16\n");
+    dwCANMessage msg1;
+    memset((void*)&msg1, 0x00, sizeof(dwCANMessage));
+    msg1.id = 200;
+    msg1.data[0] = 0x01;
+    msg1.data[1] = 0x12;
+    msg1.data[2] = 0x34;
+    msg1.data[3] = 0x56;
+    msg1.data[4] = 0x78;
+    msg1.data[5] = 0x9A;
+   
+    interprete16_3(&msg1, &gRxData[0], &gRxData[1], &gRxData[2]);
+    std::cout << "***msg.id:"<< std::uppercase<< std::setw(3) << std::hex << msg1.id
+            << std::dec << "  " ;
+    std::cout << "["<< gRxData[0].signal_name <<"] :"<< gRxData[0].value<< std::endl;
+    std::cout << "["<< gRxData[1].signal_name <<"] :"<< gRxData[1].value<< std::endl;
+    std::cout << "["<< gRxData[2].signal_name <<"] :"<< gRxData[2].value<< std::endl;
+
+    dwCANMessage msg2;
+    memset((void*)&msg2, 0x00, sizeof(dwCANMessage));
+    msg2.id = 201;
+    msg2.data[0] = 0x01;
+    msg2.data[1] = 0x12;
+    msg2.data[2] = 0x34;
+    msg2.data[3] = 0x56;
+    interprete16(&msg2, &gRxData[3]);
+
+    return 0;
+
+#endif
